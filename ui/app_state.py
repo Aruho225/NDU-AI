@@ -2,12 +2,17 @@ import streamlit as st
 from time import perf_counter
 
 from ui.assistant_client import ask_assistant, validate_message
+from ui.call_store import delete_call, load_recent_calls
 from ui.database import delete_turn, init_db, load_recent_turns, rename_turn, save_turn
+from ui.twilio_calls import fetch_recording_bytes, place_outbound_call
 from ui.voice_client import text_to_speech_bytes
 
 
 def init_state() -> None:
     init_db()
+    st.session_state.setdefault("authenticated", False)
+    st.session_state.setdefault("username", "")
+    st.session_state.setdefault("user_id", None)
     st.session_state.setdefault("history", [])
     st.session_state.setdefault("latest_audio", None)
     st.session_state.setdefault("response_cache", {})
@@ -17,12 +22,84 @@ def init_state() -> None:
     st.session_state.setdefault("total_queries", 0)
     st.session_state.setdefault("selected_chat_idx", 0)
     st.session_state.setdefault("layout_mode", "Ask Page")
-    if not st.session_state.history:
-        st.session_state.history = load_recent_turns(limit=8)
+    st.session_state.setdefault("call_history", [])
+    st.session_state.setdefault("selected_call_idx", 0)
+    st.session_state.setdefault("call_filter", "All")
+    st.session_state.setdefault("selected_call_recording", None)
+    st.session_state.setdefault("call_return_page", "Ask Page")
+    user_id = st.session_state.get("user_id")
+    if not st.session_state.history and user_id is not None:
+        st.session_state.history = load_recent_turns(int(user_id), limit=8)
     if st.session_state.history:
         st.session_state.selected_chat_idx = max(
             0, min(st.session_state.selected_chat_idx, len(st.session_state.history) - 1)
         )
+    refresh_call_history()
+
+
+def refresh_call_history() -> None:
+    user_id = st.session_state.get("user_id")
+    st.session_state.call_history = load_recent_calls(
+        int(user_id) if user_id is not None else None,
+        limit=30,
+    )
+    if st.session_state.call_history:
+        st.session_state.selected_call_idx = max(
+            0,
+            min(st.session_state.selected_call_idx, len(st.session_state.call_history) - 1),
+        )
+    else:
+        st.session_state.selected_call_idx = 0
+
+
+def start_outbound_call(phone_number: str) -> tuple[bool, str]:
+    user_id = st.session_state.get("user_id")
+    if user_id is None:
+        return False, "You must be signed in to place outbound calls."
+    ok, message, _call_sid = place_outbound_call(phone_number, int(user_id))
+    if ok:
+        refresh_call_history()
+    return ok, message
+
+
+def load_selected_call_recording() -> tuple[bool, str]:
+    calls = st.session_state.get("call_history") or []
+    if not calls:
+        st.session_state.selected_call_recording = None
+        return False, "No call selected."
+
+    idx = st.session_state.selected_call_idx
+    selected = calls[idx]
+    recording_url = selected.get("recording_url") or ""
+    if not recording_url:
+        st.session_state.selected_call_recording = None
+        return False, "Recording not available yet. It may still be processing."
+
+    audio, error = fetch_recording_bytes(recording_url)
+    if error or not audio:
+        st.session_state.selected_call_recording = None
+        return False, error or "Could not load recording."
+    st.session_state.selected_call_recording = audio
+    return True, "Recording loaded."
+
+
+def delete_selected_call() -> tuple[bool, str]:
+    calls = st.session_state.get("call_history") or []
+    if not calls:
+        return False, "No call selected."
+
+    idx = st.session_state.selected_call_idx
+    selected = calls[idx]
+    call_id = selected.get("id")
+    if call_id is None:
+        return False, "This call cannot be deleted."
+
+    delete_call(int(call_id))
+    refresh_call_history()
+    st.session_state.selected_call_recording = None
+    if not st.session_state.call_history:
+        st.session_state.layout_mode = st.session_state.get("call_return_page", "Ask Page")
+    return True, "Call removed from history."
 
 
 def submit_question(question: str, cache_enabled: bool, tts_voice: str) -> bool:
@@ -43,7 +120,11 @@ def submit_question(question: str, cache_enabled: bool, tts_voice: str) -> bool:
     else:
         st.session_state.cache_hits += 1
 
-    turn_id = save_turn(clean_q, answer)
+    user_id = st.session_state.get("user_id")
+    if user_id is None:
+        st.warning("You must be signed in to save chats.")
+        return False
+    turn_id = save_turn(clean_q, answer, int(user_id))
     st.session_state.history.insert(0, {"id": turn_id, "q": clean_q, "a": answer})
     st.session_state.selected_chat_idx = 0
     st.session_state.total_queries += 1

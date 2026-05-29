@@ -1,0 +1,15 @@
+# Voice agent (agent.py)
+python-dotenv==1.2.2
+livekit-agents==1.5.13
+livekit-plugins-openai==1.5.13
+livekit-plugins-cartesia==1.5.13
+livekit-plugins-deepgram==1.5.13
+livekit-plugins-noise-cancellation==0.2.5
+livekit-plugins-silero==1.5.13
+livekit-plugins-turn-detector==1.5.13
+
+# Web UI & Twilio webhook
+openai>=2.0.0
+streamlit>=1.40.0
+fastapi>=0.115.0
+twilio>=9.0.0

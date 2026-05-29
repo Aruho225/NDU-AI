@@ -10,6 +10,9 @@ def _conn() -> sqlite3.Connection:
 
 
 def init_db() -> None:
+    from ui.call_store import init_calls_table
+    from ui.user_store import init_users_table
+
     with _conn() as conn:
         conn.execute(
             """
@@ -21,27 +24,30 @@ def init_db() -> None:
             )
             """
         )
+    init_users_table()
+    init_calls_table()
 
 
-def save_turn(question: str, answer: str) -> int:
+def save_turn(question: str, answer: str, user_id: int) -> int:
     with _conn() as conn:
         cursor = conn.execute(
-            "INSERT INTO conversations (question, answer) VALUES (?, ?)",
-            (question, answer),
+            "INSERT INTO conversations (question, answer, user_id) VALUES (?, ?, ?)",
+            (question, answer, user_id),
         )
     return int(cursor.lastrowid)
 
 
-def load_recent_turns(limit: int = 8) -> list[dict[str, str | int]]:
+def load_recent_turns(user_id: int, limit: int = 8) -> list[dict[str, str | int]]:
     with _conn() as conn:
         rows = conn.execute(
             """
             SELECT id, question, answer
             FROM conversations
+            WHERE user_id = ?
             ORDER BY id DESC
             LIMIT ?
             """,
-            (limit,),
+            (user_id, limit),
         ).fetchall()
     return [{"id": row_id, "q": q, "a": a} for row_id, q, a in rows]
 

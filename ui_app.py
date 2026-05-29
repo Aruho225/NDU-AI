@@ -3,15 +3,15 @@ import html
 import streamlit as st
 from dotenv import load_dotenv
 
-from ui.app_state import delete_selected_chat, init_state, rename_selected_chat, submit_question
+from ui.app_state import init_state, submit_question
+from ui.auth import render_login_gate
+from ui.call_pages import render_call_detail_page, render_inbound_calls_page, render_outbound_calls_page
+from ui.controls import render_session_controls
+from ui.sidebar_chats import render_sidebar_chats
+from ui.mobile_meta import inject_mobile_meta
 from ui.presets import QUICK_PROMPTS
 from ui.styles import APP_CSS
-from ui.voice_client import TTS_VOICES, transcribe_audio
-
-
-def _short(text: str, length: int = 38) -> str:
-    clean = " ".join(text.split())
-    return clean if len(clean) <= length else f"{clean[:length].rstrip()}..."
+from ui.voice_client import transcribe_audio
 
 
 def _to_html(text: str) -> str:
@@ -19,49 +19,29 @@ def _to_html(text: str) -> str:
 
 
 load_dotenv()
-st.set_page_config(page_title="NDU AI Assistant", page_icon="🎓", layout="centered")
+st.set_page_config(
+    page_title="NDU AI Assistant",
+    page_icon="🎓",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
+inject_mobile_meta()
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
 init_state()
-with st.sidebar:
-    st.subheader("Console Controls")
-    st.session_state.layout_mode = st.radio(
-        "Page Layout",
-        ["Ask Page", "Answer Page"],
-        index=0 if st.session_state.layout_mode == "Ask Page" else 1,
-    )
-    session_live = st.toggle("Session live", value=True)
-    mute_mic = st.toggle("Mute microphone", value=False)
-    auto_play = st.toggle("Auto-play voice reply", value=True)
-    cache_enabled = st.toggle("Cache responses", value=True)
-    tts_voice = st.selectbox("Voice", options=TTS_VOICES, index=0)
-    st.caption("Inspired by real-time voice console workflows.")
-    st.divider()
-    st.subheader("Recent Chats")
-    if st.session_state.history:
-        for idx, item in enumerate(st.session_state.history[:20]):
-            active = idx == st.session_state.selected_chat_idx
-            label = ("● " if active else "") + _short(item["q"])
-            if st.button(label, key=f"chat_pick_{idx}", use_container_width=True):
-                st.session_state.selected_chat_idx = idx
-                st.session_state.layout_mode = "Answer Page"
+if not render_login_gate():
+    st.stop()
 
-        st.caption("Manage selected chat")
-        selected = st.session_state.history[st.session_state.selected_chat_idx]
-        rename_value = st.text_input(
-            "Rename selected question",
-            value=selected["q"],
-            key=f"rename_text_{st.session_state.selected_chat_idx}",
-        )
-        r_col, d_col = st.columns(2)
-        if r_col.button("Rename", use_container_width=True):
-            ok, message = rename_selected_chat(rename_value)
-            st.success(message) if ok else st.warning(message)
-        if d_col.button("Delete", use_container_width=True):
-            ok, message = delete_selected_chat()
-            st.success(message) if ok else st.warning(message)
-    else:
-        st.caption("No chats yet. Start a conversation.")
+controls = render_session_controls()
+session_live = controls["session_live"]
+mute_mic = controls["mute_mic"]
+auto_play = controls["auto_play"]
+cache_enabled = controls["cache_enabled"]
+tts_voice = controls["tts_voice"]
+
+with st.sidebar:
+    render_sidebar_chats()
+
 
 def run_query(question: str) -> None:
     cache_hit = submit_question(question, cache_enabled=cache_enabled, tts_voice=tts_voice)
@@ -71,6 +51,14 @@ def run_query(question: str) -> None:
 
 
 if st.session_state.layout_mode == "Ask Page":
+    st.markdown(
+        '<div class="mobile-tip">'
+        "<strong>On your phone:</strong> use HTTPS or your PC’s LAN IP "
+        "(e.g. <code>http://192.168.x.x:8501</code>). "
+        "Record voice below or upload a voice note (.m4a, .webm)."
+        "</div>",
+        unsafe_allow_html=True,
+    )
     hit_rate = 0 if st.session_state.total_queries == 0 else int(
         (st.session_state.cache_hits / st.session_state.total_queries) * 100
     )
@@ -113,7 +101,8 @@ if st.session_state.layout_mode == "Ask Page":
         f"""
         <div class="voice-wave-wrap">
           <div class="voice-wave {wave_state}">
-            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
           </div>
           <span class="wave-label">Voice Activity</span>
         </div>
@@ -124,43 +113,42 @@ if st.session_state.layout_mode == "Ask Page":
     metrics[0].metric("Latency", f"{st.session_state.last_latency_ms} ms")
     metrics[1].metric("Queries", st.session_state.total_queries)
     metrics[2].metric("Cache hits", st.session_state.cache_hits)
-    st.caption("Database: SQLite connected (`chat_history.db`) for persistent conversations.")
+    st.caption("SQLite: `chat_history.db` · Adjust settings in the sidebar panel.")
 
     with st.form("assistant_form", clear_on_submit=True):
         prompt = st.text_area(
             "Command Center",
             placeholder="Example: How do I apply for the August intake?",
-            height=120,
+            height=100,
         )
-        submitted = st.form_submit_button("Send")
+        submitted = st.form_submit_button("Send", use_container_width=True)
 
     if submitted and session_live:
         run_query(prompt)
     elif submitted:
-        st.warning("Session is paused. Turn on 'Session live' to send messages.")
+        st.warning("Session is paused. Turn on **Session live** in the sidebar.")
 
     st.subheader("Quick Actions")
-    cols = st.columns(2)
     for idx, text in enumerate(QUICK_PROMPTS):
-        if cols[idx % 2].button(text, key=f"preset_{idx}", use_container_width=True):
+        if st.button(text, key=f"preset_{idx}", use_container_width=True):
             if session_live:
                 run_query(text)
             else:
                 st.warning("Session is paused.")
 
     st.subheader("Voice Input")
-    mic_audio = st.audio_input("Record with microphone")
+    mic_audio = st.audio_input("Record with microphone", key="mic_input")
     audio_file = st.file_uploader(
         "Or upload a voice note",
         type=["wav", "mp3", "m4a", "webm", "ogg"],
-        help="Record from phone/PC and upload, then transcribe and ask.",
+        help="On iPhone: use Voice Memos, then upload the .m4a file here.",
     )
 
     if st.button("Transcribe and Ask", use_container_width=True):
         if not session_live:
-            st.warning("Session is paused. Resume to process voice.")
+            st.warning("Session is paused. Resume in the sidebar.")
         elif mute_mic:
-            st.warning("Microphone is muted in controls.")
+            st.warning("Microphone is muted in the sidebar.")
         else:
             source = mic_audio or audio_file
             if not source:
@@ -173,17 +161,27 @@ if st.session_state.layout_mode == "Ask Page":
                 else:
                     run_query(transcript)
                     st.success("Voice message processed.")
-else:
+elif st.session_state.layout_mode == "Answer Page":
     st.subheader("Answer Page")
     st.caption("Focused layout for selected chat only.")
-    if st.button("Back To Ask Page", use_container_width=False):
+    if st.button("Back To Ask Page", use_container_width=True):
         st.session_state.layout_mode = "Ask Page"
+elif st.session_state.layout_mode == "Inbound Calls Page":
+    render_inbound_calls_page()
+elif st.session_state.layout_mode == "Outbound Calls Page":
+    render_outbound_calls_page()
+elif st.session_state.layout_mode == "Call Detail Page":
+    render_call_detail_page()
 
 if st.session_state.latest_audio:
     st.subheader("Assistant Voice Reply")
-    st.audio(st.session_state.latest_audio, format="audio/mp3", autoplay=auto_play)
+    st.audio(
+        st.session_state.latest_audio,
+        format="audio/mp3",
+        autoplay=auto_play,
+    )
 
-if st.session_state.history:
+if st.session_state.history and st.session_state.layout_mode in {"Ask Page", "Answer Page"}:
     selected = st.session_state.history[st.session_state.selected_chat_idx]
     if st.session_state.layout_mode == "Answer Page":
         st.markdown(
@@ -206,6 +204,8 @@ if st.session_state.history:
                 unsafe_allow_html=True,
             )
             st.divider()
-else:
-    st.markdown('<div class="note">Start by asking anything about admissions, fees guidance, programs, or portal support.</div>', unsafe_allow_html=True)
-
+elif st.session_state.layout_mode == "Ask Page":
+    st.markdown(
+        '<div class="note">Start by asking anything about admissions, fees, programs, or portal support.</div>',
+        unsafe_allow_html=True,
+    )

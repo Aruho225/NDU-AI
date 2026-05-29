@@ -85,5 +85,8 @@ APP_CSS = """
     @keyframes softPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
     @keyframes equalize { 0%,100% { height: 12px; } 50% { height: 44px; } }
     @keyframes equalizeBg { 0%,100% { height: 22px; } 50% { height: 110px; } }
-</style>
 """
+
+from ui.styles_mobile import MOBILE_CSS
+
+APP_CSS = f"{APP_CSS.strip()}\n{MOBILE_CSS.strip()}\n</style>"
