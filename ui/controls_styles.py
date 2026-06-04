@@ -1,5 +1,15 @@
 SESSION_CONTROLS_CSS = """
 <style>
+    section[data-testid="stSidebar"] [data-testid="stExpander"] {
+        background: linear-gradient(165deg, #87CEEB 0%, #b3e5fc 100%) !important;
+        border-color: #5eb3d6 !important;
+        border-radius: 14px !important;
+        margin-bottom: 0.85rem !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        color: #0f2f79 !important;
+        font-weight: 700 !important;
+    }
     section[data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] {
         background: linear-gradient(165deg, #87CEEB 0%, #b3e5fc 100%) !important;
         border-color: #5eb3d6 !important; border-radius: 14px !important;

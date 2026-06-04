@@ -15,13 +15,37 @@ from ui.twilio_calls import twilio_configured
 
 BADGE_PATH = Path(__file__).resolve().parent / "assets" / "ndu_badge.png"
 
-NAV_PAGES = {
-    "Ask Page": "Chats",
-    "Answer Page": "Chats",
-    "Inbound Calls Page": "Inbound",
-    "Outbound Calls Page": "Outbound",
-    "Call Detail Page": None,
-}
+NAV_LABELS = ["Chats · Ask", "Chats · Answer", "Inbound calls", "Outbound calls"]
+NAV_MODES = ["Ask Page", "Answer Page", "Inbound Calls Page", "Outbound Calls Page"]
+
+
+def _current_nav_mode() -> str:
+    current = st.session_state.layout_mode
+    if current == "Call Detail Page":
+        return st.session_state.get("call_return_page", "Ask Page")
+    if current in NAV_MODES:
+        return current
+    return "Ask Page"
+
+
+def _render_nav_links() -> None:
+    current = _current_nav_mode()
+    try:
+        index = NAV_MODES.index(current)
+    except ValueError:
+        index = 0
+
+    choice = st.selectbox(
+        "Navigate",
+        NAV_LABELS,
+        index=index,
+        key="sidebar_nav_select",
+    )
+    target = NAV_MODES[NAV_LABELS.index(choice)]
+    if target != _current_nav_mode():
+        st.session_state.layout_mode = target
+        st.session_state.selected_call_recording = None
+        st.rerun()
 
 
 def _short(text: str, length: int = 38) -> str:
@@ -59,26 +83,6 @@ def _open_call_detail(call_id: int, return_page: str) -> None:
     st.session_state.call_return_page = return_page
     st.session_state.layout_mode = "Call Detail Page"
     st.session_state.selected_call_recording = None
-
-
-def _render_nav_links() -> None:
-    st.markdown('<p class="chat-manage-label">Navigate</p>', unsafe_allow_html=True)
-    current = st.session_state.layout_mode
-    active_nav = NAV_PAGES.get(current)
-
-    chat_type = "primary" if active_nav == "Chats" else "secondary"
-    inbound_type = "primary" if active_nav == "Inbound" else "secondary"
-    outbound_type = "primary" if active_nav == "Outbound" else "secondary"
-
-    if st.button("Chats", use_container_width=True, type=chat_type, key="nav_chats"):
-        st.session_state.layout_mode = "Ask Page"
-        st.rerun()
-    if st.button("Inbound calls", use_container_width=True, type=inbound_type, key="nav_inbound"):
-        st.session_state.layout_mode = "Inbound Calls Page"
-        st.rerun()
-    if st.button("Outbound calls", use_container_width=True, type=outbound_type, key="nav_outbound"):
-        st.session_state.layout_mode = "Outbound Calls Page"
-        st.rerun()
 
 
 def _render_header(chat_count: int) -> None:
