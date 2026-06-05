@@ -13,6 +13,8 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def init_users_table() -> None:
+    from ui.session_store import init_auth_sessions_table
+
     with _conn() as conn:
         conn.execute(
             """
@@ -25,6 +27,7 @@ def init_users_table() -> None:
             )
             """
         )
+        init_auth_sessions_table(conn)
         cols = {row[1] for row in conn.execute("PRAGMA table_info(conversations)").fetchall()}
         if "user_id" not in cols:
             conn.execute("ALTER TABLE conversations ADD COLUMN user_id INTEGER")

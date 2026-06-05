@@ -11,5 +11,6 @@ livekit-plugins-turn-detector==1.5.13
 # Web UI & Twilio webhook
 openai>=2.0.0
 streamlit>=1.40.0
+extra-streamlit-components>=0.1.71
 fastapi>=0.115.0
 twilio>=9.0.0

@@ -12,14 +12,14 @@ from livekit.plugins import (
 )
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-from prompts import NDEJJE_UNIVERSITY_SYSTEM_PROMPT
+from prompt_loader import load_greeting_prompt, load_system_prompt
 
 load_dotenv()
 
 
 class NdejjeUniversityAssistant(Agent):
     def __init__(self) -> None:
-        super().__init__(instructions=NDEJJE_UNIVERSITY_SYSTEM_PROMPT)
+        super().__init__(instructions=load_system_prompt())
 
 
 async def entrypoint(ctx: agents.JobContext):
@@ -49,15 +49,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     await ctx.connect()
 
-    await session.generate_reply(
-        instructions="""
-        Greet the user warmly.
-        Introduce yourself as the NDU AI Assistant.
-        Tell the user you can help with admissions, fees guidance, academic information,
-        portal guidance, student support, and general university questions.
-        Keep the greeting brief and natural.
-        """
-    )
+    await session.generate_reply(instructions=load_greeting_prompt())
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import html
 
 import streamlit as st
 
+from ui.text_format import format_chat_html
 from ui.app_state import (
     delete_selected_call,
     load_selected_call_recording,
@@ -12,7 +13,7 @@ from ui.twilio_calls import twilio_configured
 
 
 def _to_html(text: str) -> str:
-    return html.escape(text).replace("\n", "<br>")
+    return format_chat_html(text)
 
 
 def _short_time(value: str) -> str:

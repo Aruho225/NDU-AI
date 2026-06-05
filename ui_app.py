@@ -4,18 +4,21 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from ui.app_state import init_state, submit_question
-from ui.auth import render_login_gate
+from ui.auth import render_login_gate, try_restore_session
 from ui.call_pages import render_call_detail_page, render_inbound_calls_page, render_outbound_calls_page
 from ui.controls import render_session_controls
 from ui.sidebar_chats import render_sidebar_chats
 from ui.mobile_meta import inject_mobile_meta
 from ui.presets import QUICK_PROMPTS
-from ui.styles import APP_CSS
+from ui.theme import build_app_css, is_dark_mode
+from ui.text_format import format_chat_html
+from ui.ambient_layer import mic_label, render_ambient_html
+from ui.hero_panel import render_hero_html
 from ui.voice_client import transcribe_audio
 
 
 def _to_html(text: str) -> str:
-    return html.escape(text).replace("\n", "<br>")
+    return format_chat_html(text)
 
 
 load_dotenv()
@@ -26,11 +29,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 inject_mobile_meta()
-st.markdown(APP_CSS, unsafe_allow_html=True)
-
 init_state()
+try_restore_session()
+
+_authed = bool(st.session_state.get("authenticated") and st.session_state.get("user_id"))
+st.markdown(build_app_css(is_dark_mode() if _authed else False), unsafe_allow_html=True)
+if _authed:
+    st.markdown(render_ambient_html(), unsafe_allow_html=True)
+
 if not render_login_gate():
     st.stop()
+
+login_flash = st.session_state.pop("login_flash", None)
+if login_flash:
+    st.success(login_flash)
 
 controls = render_session_controls()
 session_live = controls["session_live"]
@@ -66,17 +78,7 @@ if st.session_state.layout_mode == "Ask Page":
     mic = "MUTED" if mute_mic else "READY"
     wave_state = "wave-paused" if (not session_live or mute_mic) else "wave-live"
     bg_wave_state = "bg-wave bg-wave-paused" if (not session_live or mute_mic) else "bg-wave"
-    st.markdown(
-        """
-        <div class="hero">
-            <h1 class="brand"><span class="brand-accent">NDU</span> AI Assistant</h1>
-            <p class="tagline">Modern interface for quick university support.</p>
-            <span class="pill">Admissions</span><span class="pill">Fees Guidance</span>
-            <span class="pill">Academic Support</span><span class="pill">ICT Help</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(render_hero_html(), unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="bg-wave-layer" aria-hidden="true">
@@ -92,7 +94,7 @@ if st.session_state.layout_mode == "Ask Page":
         f"""
         <div class="console-bar">
           <span class="badge">{status}</span><span class="badge">{mic}</span>
-          <span class="badge">Voice: {tts_voice}</span><span class="badge">Cache: {hit_rate}%</span>
+          <span class="badge">{mic_label(f"Voice: {tts_voice}")}</span><span class="badge">Cache: {hit_rate}%</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -104,7 +106,7 @@ if st.session_state.layout_mode == "Ask Page":
             <span></span><span></span><span></span><span></span>
             <span></span><span></span><span></span><span></span>
           </div>
-          <span class="wave-label">Voice Activity</span>
+          <span class="wave-label">{mic_label("Voice Activity")}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -126,7 +128,7 @@ if st.session_state.layout_mode == "Ask Page":
     if submitted and session_live:
         run_query(prompt)
     elif submitted:
-        st.warning("Session is paused. Turn on **Session live** in the sidebar.")
+        st.warning("Session is paused. Turn on Session live in the sidebar.")
 
     st.subheader("Quick Actions")
     for idx, text in enumerate(QUICK_PROMPTS):
@@ -136,7 +138,7 @@ if st.session_state.layout_mode == "Ask Page":
             else:
                 st.warning("Session is paused.")
 
-    st.subheader("Voice Input")
+    st.markdown(f"#### {mic_label('Voice Input')}", unsafe_allow_html=True)
     mic_audio = st.audio_input("Record with microphone", key="mic_input")
     audio_file = st.file_uploader(
         "Or upload a voice note",

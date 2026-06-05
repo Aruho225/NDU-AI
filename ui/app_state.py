@@ -22,6 +22,7 @@ def init_state() -> None:
     st.session_state.setdefault("total_queries", 0)
     st.session_state.setdefault("selected_chat_idx", 0)
     st.session_state.setdefault("layout_mode", "Ask Page")
+    st.session_state.setdefault("dark_mode", True)
     st.session_state.setdefault("call_history", [])
     st.session_state.setdefault("selected_call_idx", 0)
     st.session_state.setdefault("call_filter", "All")

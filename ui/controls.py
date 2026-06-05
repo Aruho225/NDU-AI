@@ -6,6 +6,8 @@ from ui.auth import logout
 
 from ui.controls_styles import SESSION_CONTROLS_CSS
 
+from ui.ambient_layer import mic_label
+from ui.theme import render_theme_toggle
 from ui.voice_client import TTS_VOICES
 
 
@@ -30,7 +32,7 @@ def render_status_bar(session_live: bool, mute_mic: bool, username: str, tts_voi
 
           <span class="pill pill-voice">{mic}</span>
 
-          <span class="pill pill-voice">🎙 {tts_voice}</span>
+          <span class="pill pill-voice">{mic_label(f"Voice: {tts_voice}")}</span>
 
           <span class="pill pill-user">👤 {username}</span>
 
@@ -82,7 +84,9 @@ def render_session_controls() -> dict:
 
             cache_enabled = c4.toggle("Cache", value=True, key="ctrl_cache")
 
-            tts_voice = st.selectbox("Voice", options=TTS_VOICES, index=0, key="ctrl_tts_voice")
+            dark_mode = render_theme_toggle()
+
+            tts_voice = st.selectbox("🎤 Voice", options=TTS_VOICES, index=0, key="ctrl_tts_voice")
 
 
 
@@ -115,6 +119,8 @@ def render_session_controls() -> dict:
         "cache_enabled": cache_enabled,
 
         "tts_voice": tts_voice,
+
+        "dark_mode": dark_mode,
 
     }
 

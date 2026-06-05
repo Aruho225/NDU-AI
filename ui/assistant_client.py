@@ -3,7 +3,7 @@ from typing import Optional
 
 from openai import OpenAI
 
-from prompts import NDEJJE_UNIVERSITY_SYSTEM_PROMPT
+from prompt_loader import load_system_prompt
 
 
 DEFAULT_MODEL = "gpt-4o-mini"
@@ -20,7 +20,7 @@ def ask_assistant(user_message: str, model: str = DEFAULT_MODEL) -> str:
         response = client.responses.create(
             model=model,
             input=[
-                {"role": "system", "content": NDEJJE_UNIVERSITY_SYSTEM_PROMPT.strip()},
+                {"role": "system", "content": load_system_prompt()},
                 {"role": "user", "content": user_message.strip()},
             ],
             temperature=0.4,

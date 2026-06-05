@@ -1,6 +1,8 @@
 import base64
 from pathlib import Path
 
+from ndu_links import NDU_WEBSITE
+
 BADGE_PATH = Path(__file__).resolve().parent / "assets" / "ndu_badge.png"
 
 
@@ -20,7 +22,10 @@ def brand_panel_html() -> str:
     </div>
     <h1>Welcome to<br><span class="accent">NDU AI Assistant</span></h1>
     <p class="lead">Admissions · Fees · Academics · ICT Support</p>
-    <p class="footnote">Fear of God brings knowledge &amp; wisdom</p>
+    <p class="footnote">
+      <a href="{NDU_WEBSITE}" target="_blank" rel="noopener noreferrer" style="color:#1e3a8a;font-weight:700;">ndejjeuniversity.ac.ug</a><br>
+      Fear of God brings knowledge &amp; wisdom
+    </p>
   </div>
   <div class="login-waves" aria-hidden="true">
     <span></span><span></span><span></span>
