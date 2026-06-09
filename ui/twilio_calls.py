@@ -77,13 +77,18 @@ def place_outbound_call(to_number: str, user_id: int) -> tuple[bool, str, Option
             recording_status_callback_method="POST",
         )
         from ui.call_store import create_call
+        from ui.livekit_telephony import room_name_for_call
+        from ui.telephony_config import voice_mode
 
+        mode = voice_mode()
         create_call(
             call_sid=call.sid,
             direction="outbound",
             from_number=from_number,
             to_number=clean_to,
             user_id=user_id,
+            voice_mode=mode,
+            livekit_room=room_name_for_call(call.sid) if mode == "livekit" else None,
         )
         return True, f"Outbound call started to {clean_to}.", call.sid
     except Exception as exc:

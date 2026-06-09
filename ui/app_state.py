@@ -3,13 +3,18 @@ from time import perf_counter
 
 from ui.assistant_client import ask_assistant, validate_message
 from ui.call_store import delete_call, load_recent_calls
+from ui.call_sync import sync_calls
 from ui.database import delete_turn, init_db, load_recent_turns, rename_turn, save_turn
+from ui.auth import restore_session_from_cookie
+from ui.assistants_config import ASSISTANT_ID
+from ui.layout_modes import CALLS, CONVERSATION, DEFAULT_MODE, PLAYGROUND, normalize_mode
 from ui.twilio_calls import fetch_recording_bytes, place_outbound_call
 from ui.voice_client import text_to_speech_bytes
 
 
 def init_state() -> None:
     init_db()
+    restore_session_from_cookie()
     st.session_state.setdefault("authenticated", False)
     st.session_state.setdefault("username", "")
     st.session_state.setdefault("user_id", None)
@@ -21,12 +26,21 @@ def init_state() -> None:
     st.session_state.setdefault("cache_hits", 0)
     st.session_state.setdefault("total_queries", 0)
     st.session_state.setdefault("selected_chat_idx", 0)
-    st.session_state.setdefault("layout_mode", "Ask Page")
+    st.session_state.setdefault("selected_assistant_id", ASSISTANT_ID)
+    st.session_state.setdefault("calls_tab", "all")
     st.session_state.setdefault("call_history", [])
     st.session_state.setdefault("selected_call_idx", 0)
     st.session_state.setdefault("call_filter", "All")
     st.session_state.setdefault("selected_call_recording", None)
-    st.session_state.setdefault("call_return_page", "Ask Page")
+    st.session_state.setdefault("call_return_page", CALLS)
+    st.session_state.setdefault("live_watch_call_sid", "")
+    st.session_state.setdefault("live_auto_refresh", True)
+    st.session_state.setdefault("calls_table_open_id", None)
+    if "layout_mode" in st.session_state:
+        st.session_state.layout_mode = normalize_mode(st.session_state.layout_mode)
+        st.session_state.call_return_page = normalize_mode(st.session_state.call_return_page)
+    else:
+        st.session_state.setdefault("layout_mode", DEFAULT_MODE)
     user_id = st.session_state.get("user_id")
     if not st.session_state.history and user_id is not None:
         st.session_state.history = load_recent_turns(int(user_id), limit=8)
@@ -37,12 +51,13 @@ def init_state() -> None:
     refresh_call_history()
 
 
-def refresh_call_history() -> None:
+def refresh_call_history(sync_twilio: bool = True) -> None:
     user_id = st.session_state.get("user_id")
-    st.session_state.call_history = load_recent_calls(
-        int(user_id) if user_id is not None else None,
-        limit=30,
-    )
+    uid = int(user_id) if user_id is not None else None
+    current = load_recent_calls(uid, limit=30)
+    if sync_twilio and current:
+        sync_calls(current)
+    st.session_state.call_history = load_recent_calls(uid, limit=30)
     if st.session_state.call_history:
         st.session_state.selected_call_idx = max(
             0,
@@ -52,14 +67,18 @@ def refresh_call_history() -> None:
         st.session_state.selected_call_idx = 0
 
 
-def start_outbound_call(phone_number: str) -> tuple[bool, str]:
+def start_outbound_call(phone_number: str) -> tuple[bool, str, str | None]:
     user_id = st.session_state.get("user_id")
     if user_id is None:
-        return False, "You must be signed in to place outbound calls."
-    ok, message, _call_sid = place_outbound_call(phone_number, int(user_id))
+        return False, "You must be signed in to place outbound calls.", None
+    ok, message, call_sid = place_outbound_call(phone_number, int(user_id))
     if ok:
         refresh_call_history()
-    return ok, message
+        if call_sid:
+            st.session_state.live_watch_call_sid = call_sid
+            st.session_state.live_auto_refresh = True
+            st.session_state.layout_mode = "Calls"
+    return ok, message, call_sid
 
 
 def load_selected_call_recording() -> tuple[bool, str]:
@@ -98,7 +117,7 @@ def delete_selected_call() -> tuple[bool, str]:
     refresh_call_history()
     st.session_state.selected_call_recording = None
     if not st.session_state.call_history:
-        st.session_state.layout_mode = st.session_state.get("call_return_page", "Ask Page")
+        st.session_state.layout_mode = st.session_state.get("call_return_page", CALLS)
     return True, "Call removed from history."
 
 
@@ -175,5 +194,5 @@ def delete_selected_chat() -> tuple[bool, str]:
         st.session_state.selected_chat_idx = max(0, idx - 1)
     else:
         st.session_state.selected_chat_idx = 0
-        st.session_state.layout_mode = "Ask Page"
+        st.session_state.layout_mode = PLAYGROUND
     return True, "Chat deleted."
