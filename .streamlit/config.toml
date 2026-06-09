@@ -12,11 +12,18 @@ serverAddress = "localhost"
 
 [client]
 toolbarMode = "minimal"
-showSidebarNavigation = true
+showSidebarNavigation = false
 
 [theme]
-primaryColor = "#1d4ed8"
-backgroundColor = "#eff6ff"
+primaryColor = "#0c2340"
+backgroundColor = "#f4f4f4"
 secondaryBackgroundColor = "#ffffff"
-textColor = "#0f172a"
+textColor = "#0c2340"
 font = "sans serif"
+
+[theme.sidebar]
+backgroundColor = "#0c2340"
+secondaryBackgroundColor = "#0c2340"
+textColor = "#d6e8ff"
+primaryColor = "#e31837"
+borderColor = "#e31837"

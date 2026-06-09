@@ -9,6 +9,8 @@ from ui.app_state import (
     refresh_call_history,
     start_outbound_call,
 )
+from ui.call_sync import sync_call_from_twilio
+from ui.layout_modes import CALLS, PLAYGROUND
 from ui.twilio_calls import twilio_configured
 
 
@@ -41,7 +43,7 @@ def _open_call_detail(call_id: int, return_page: str) -> None:
         if item.get("id") == call_id:
             st.session_state.selected_call_idx = idx
             break
-    st.session_state.call_return_page = return_page
+    st.session_state.call_return_page = return_page or CALLS
     st.session_state.layout_mode = "Call Detail Page"
     st.session_state.selected_call_recording = None
 
@@ -132,26 +134,44 @@ def render_call_detail_page() -> None:
     if not calls:
         st.warning("No call selected.")
         if st.button("Back", use_container_width=True, key="call_detail_back_empty"):
-            st.session_state.layout_mode = st.session_state.get("call_return_page", "Ask Page")
+            st.session_state.layout_mode = st.session_state.get("call_return_page", CALLS)
         return
 
     selected_call = calls[st.session_state.selected_call_idx]
-    direction = selected_call.get("direction", "unknown").title()
-    return_page = st.session_state.get("call_return_page", "Ask Page")
+    call_sid = selected_call.get("call_sid") or ""
+    if call_sid:
+        sync_call_from_twilio(call_sid)
+        refresh_call_history(sync_twilio=False)
+        calls = st.session_state.get("call_history") or calls
+        selected_call = calls[st.session_state.selected_call_idx]
 
-    st.subheader("Call Detail")
-    st.caption("Recording and conversation transcript for the selected call.")
+    direction = selected_call.get("direction", "unknown").title()
+    return_page = st.session_state.get("call_return_page", CALLS)
+
+    st.markdown(
+        """
+        <div class="page-header">
+          <h1>Call detail</h1>
+          <p>Recording, live turns, and full transcript for the selected call.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if st.button("Back", use_container_width=True, key="call_detail_back"):
         st.session_state.layout_mode = return_page
         st.session_state.selected_call_recording = None
+        st.session_state.pop("calls_table_open_id", None)
+        if "calls_table" in st.session_state:
+            st.session_state.calls_table = {"selection": {"rows": []}}
         st.rerun()
 
     meta = st.columns(4)
     meta[0].metric("Direction", direction)
     meta[1].metric("Status", selected_call.get("status", "unknown"))
-    meta[2].metric("Duration", f"{selected_call.get('duration_seconds', 0)} s")
-    meta[3].metric("When", _short_time(selected_call.get("created_at", "")))
+    meta[2].metric("Voice", (selected_call.get("voice_mode") or "—").upper())
+    meta[3].metric("Duration", f"{selected_call.get('duration_seconds', 0)} s")
+    st.caption(f"Room: {selected_call.get('livekit_room') or '—'} · {_short_time(selected_call.get('created_at', ''))}")
 
     st.markdown(
         f"""

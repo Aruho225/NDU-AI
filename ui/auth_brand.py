@@ -14,7 +14,7 @@ def _badge_data_uri() -> str:
 def brand_panel_html() -> str:
     badge = _badge_data_uri()
     return f"""
-<div class="login-left" style="background-color: #87CEEB;">
+<div class="login-left">
   <div class="login-left-inner">
     <p class="login-logo">Ndejje University</p>
     <div class="login-badge-frame">

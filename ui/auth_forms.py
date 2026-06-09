@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 
 from ui.user_store import authenticate_user, register_user, reset_password
@@ -7,6 +9,8 @@ def _set_logged_in(username: str, user_id: int, remember: bool = True) -> None:
     from ui.auth import login
 
     login(username, user_id, remember=remember)
+    if remember:
+        time.sleep(0.5)
 
 
 def _header(title: str, subtitle: str) -> None:
@@ -32,11 +36,10 @@ def render_login_form() -> None:
     if submitted:
         ok, user_id, message = authenticate_user(username, password)
         if ok and user_id is not None:
-            remember = st.session_state.get("login_remember", True)
+            remember = bool(st.session_state.get("login_remember", True))
             _set_logged_in(username, user_id, remember=remember)
             st.rerun()
-        else:
-            st.error(message)
+        st.error(message)
 
     c1, c2 = st.columns(2)
     if c1.button("Create account", key="auth_register", use_container_width=True):
