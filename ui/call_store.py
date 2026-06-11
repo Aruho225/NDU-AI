@@ -254,6 +254,34 @@ def load_active_calls(user_id: Optional[int] = None, limit: int = 10) -> list[di
     return [_row_to_call(row) for row in rows]
 
 
+def load_calls_in_range(
+    user_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 500,
+) -> list[dict[str, Any]]:
+    """Load calls between start_date and end_date (YYYY-MM-DD), inclusive."""
+    clauses = ["1=1"]
+    params: list[Any] = []
+    if user_id is not None:
+        clauses.append("(user_id = ? OR direction = 'inbound')")
+        params.append(user_id)
+    if start_date:
+        clauses.append("date(created_at) >= date(?)")
+        params.append(start_date)
+    if end_date:
+        clauses.append("date(created_at) <= date(?)")
+        params.append(end_date)
+    where = " AND ".join(clauses)
+    params.append(limit)
+    with _conn() as conn:
+        rows = conn.execute(
+            f"{_CALL_SELECT} WHERE {where} ORDER BY id DESC LIMIT ?",
+            tuple(params),
+        ).fetchall()
+    return [_row_to_call(row) for row in rows]
+
+
 def load_recent_calls(user_id: Optional[int] = None, limit: int = 30) -> list[dict[str, Any]]:
     with _conn() as conn:
         if user_id is not None:

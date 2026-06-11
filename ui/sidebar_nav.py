@@ -11,6 +11,7 @@ from ui.layout_modes import (
     CALL_DETAIL,
     CALLS,
     CONVERSATION,
+    DASHBOARD,
     PHONE_NUMBERS,
     PLAYGROUND,
     SETTINGS,
@@ -97,6 +98,7 @@ def _render_workspace_nav() -> None:
     chat_count = len(st.session_state.get("history") or [])
     call_count = len(st.session_state.get("call_history") or [])
 
+    _nav_button("Dashboard", DASHBOARD, "nav_dashboard")
     _nav_button("Playground", PLAYGROUND, "nav_playground")
     _nav_button("Conversations", CONVERSATION, "nav_conversation", str(chat_count) if chat_count else "")
     _nav_button("Phone numbers", PHONE_NUMBERS, "nav_phones")

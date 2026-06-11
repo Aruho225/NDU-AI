@@ -4,16 +4,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from ui.twilio_calls import get_webhook_base_url, twilio_config_issue
+from ui.twilio_calls import get_webhook_base_url, twilio_configured
 
 
 def main() -> None:
-    issue = twilio_config_issue()
     base = get_webhook_base_url()
     print("Twilio voice check")
     print("-" * 40)
-    if issue:
-        print("BLOCKED:", issue)
+    if not twilio_configured():
+        print("BLOCKED: Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in .env.")
+    elif not base:
+        print("BLOCKED: Set TWILIO_WEBHOOK_BASE_URL to your public ngrok URL (port 8000).")
     else:
         print("Credentials: OK")
     print("Webhook base:", base or "(not set)")

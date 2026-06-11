@@ -56,9 +56,18 @@ async def _livekit_voice_twiml(
     return build_stream_twiml(connect_url)
 
 
+def _status_callback_attrs(base: str) -> dict[str, str]:
+    if not base:
+        return {}
+    return {
+        "status_callback": f"{base}/twilio/voice/status",
+        "status_callback_method": "POST",
+    }
+
+
 def build_call_flow() -> str:
     base = _base_url()
-    response = VoiceResponse()
+    response = VoiceResponse(**_status_callback_attrs(base))
     start = Start()
     start.recording(
         recording_status_callback=f"{base}/twilio/voice/recording",
@@ -163,7 +172,7 @@ def handle_status(call_sid: str, status: str, duration: int) -> None:
     if not call_sid:
         return
     if not get_call_by_sid(call_sid):
-        return
+        create_call(call_sid=call_sid, direction="inbound", from_number="", to_number="")
     update_call_status(call_sid, status.lower(), duration)
 
 

@@ -36,6 +36,8 @@ def init_state() -> None:
     st.session_state.setdefault("live_watch_call_sid", "")
     st.session_state.setdefault("live_auto_refresh", True)
     st.session_state.setdefault("calls_table_open_id", None)
+    st.session_state.setdefault("dash_notifications", [])
+    st.session_state.setdefault("dash_seen_call_ids", [])
     if "layout_mode" in st.session_state:
         st.session_state.layout_mode = normalize_mode(st.session_state.layout_mode)
         st.session_state.call_return_page = normalize_mode(st.session_state.call_return_page)

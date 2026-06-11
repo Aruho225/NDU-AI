@@ -75,8 +75,14 @@ def build_stream_twiml(connect_url: str, greeting: str = "") -> str:
 
     from ui.twilio_calls import get_webhook_base_url
 
-    response = VoiceResponse()
     base = get_webhook_base_url()
+    status_attrs = {}
+    if base:
+        status_attrs = {
+            "status_callback": f"{base}/twilio/voice/status",
+            "status_callback_method": "POST",
+        }
+    response = VoiceResponse(**status_attrs)
     if base:
         start = Start()
         start.recording(

@@ -1,6 +1,7 @@
 """App navigation modes (Vapi-style console)."""
 
 ASSISTANT = "Assistant"
+DASHBOARD = "Dashboard"
 PLAYGROUND = "Playground"
 CONVERSATION = "Conversation"
 PHONE_NUMBERS = "Phone Numbers"

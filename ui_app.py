@@ -10,6 +10,7 @@ from ui.layout_modes import (
     CALL_DETAIL,
     CALLS,
     CONVERSATION,
+    DASHBOARD,
     PHONE_NUMBERS,
     PLAYGROUND,
     SETTINGS,
@@ -18,6 +19,7 @@ from ui.layout_modes import (
 from ui.mobile_meta import inject_mobile_meta
 from ui.pages.assistant_page import render_assistant_page
 from ui.pages.calls_page import render_calls_page
+from ui.pages.dashboard_page import render_dashboard_page
 from ui.pages.conversation_page import render_conversation_page
 from ui.pages.phone_page import render_phone_page
 from ui.pages.playground_page import render_playground_page
@@ -27,7 +29,7 @@ from ui.styles import APP_CSS
 from ui.voice_client import transcribe_audio
 
 
-load_dotenv()
+load_dotenv(override=True)
 st.set_page_config(
     page_title="NDU Console",
     page_icon="🎓",
@@ -78,6 +80,8 @@ def handle_transcribe(source) -> None:
 
 if mode == ASSISTANT:
     render_assistant_page()
+elif mode == DASHBOARD:
+    render_dashboard_page()
 elif mode == PLAYGROUND:
     render_playground_page(
         session_live=session_live,

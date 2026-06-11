@@ -7,13 +7,27 @@ import urllib.request
 from typing import Optional
 
 PHONE_RE = re.compile(r"^\+[1-9]\d{6,14}$")
+_ENV_LOADED = False
+
+
+def _refresh_env() -> None:
+    """Reload .env so long-running Streamlit picks up credential changes."""
+    global _ENV_LOADED
+    from dotenv import load_dotenv
+
+    load_dotenv(override=True)
+    _ENV_LOADED = True
 
 
 def get_account_sid() -> str:
+    if not _ENV_LOADED:
+        _refresh_env()
     return os.getenv("TWILIO_ACCOUNT_SID", "").strip()
 
 
 def get_auth_token() -> str:
+    if not _ENV_LOADED:
+        _refresh_env()
     return os.getenv("TWILIO_AUTH_TOKEN", "").strip()
 
 
@@ -47,6 +61,7 @@ def validate_phone(number: str) -> Optional[str]:
 
 
 def place_outbound_call(to_number: str, user_id: int) -> tuple[bool, str, Optional[str]]:
+    _refresh_env()
     if not twilio_configured():
         return False, "Twilio is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to .env.", None
 

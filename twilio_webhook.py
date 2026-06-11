@@ -179,10 +179,13 @@ async def voice_continue(request: Request) -> Response:
     return Response(content=build_continue_prompt(), media_type="application/xml")
 
 
-@app.post("/twilio/voice/status")
+@app.api_route("/twilio/voice/status", methods=["GET", "POST"])
 async def voice_status(request: Request) -> Response:
+    if request.method == "GET":
+        return Response(content="ok", media_type="text/plain")
     valid, form = await _validate_twilio_request(request)
     if not valid:
+        logger.warning("Status callback rejected: invalid Twilio signature")
         return Response(content="Forbidden", status_code=403)
     try:
         duration = int(form.get("CallDuration", "0") or "0")
